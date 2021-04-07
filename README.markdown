@@ -1,4 +1,4 @@
-# Lazy Browser
+# Vimproviser
 
 Remap `h` and `l` keys for common actions with an ease!
 
@@ -9,7 +9,7 @@ Run the command to choose situational mappings for `h` and `l`
 For example:
 
 ``` vim
-:LazyBrowserMap QuickFix
+:VimproviserMap QuickFix
 ```
 
 will remap `h` to `:cprevious<cr>` and `l` to `:cnext<cr>`.
@@ -17,11 +17,11 @@ will remap `h` to `:cprevious<cr>` and `l` to `:cnext<cr>`.
 Try other arguments
 ``` vim
 " gT and gt
-:LazyBrowserMap Tab
+:VimproviserMap Tab
 " @h and @l -- improvise away!
-:LazyBrowserMap Macros
+:VimproviserMap Macros
 " h and l -- boooring
-:LazyBrowserMap Literal
+:VimproviserMap Literal
 ```
 
 Use completion `<c-d>` to see all available options.
@@ -29,26 +29,26 @@ Use completion `<c-d>` to see all available options.
 ## Configuration
 
 To add your mappings to the default ones,
-define the `g:lazy_browser_pairs` variable in your `.vimrc`
+define the `g:vimproviser_pairs` variable in your `.vimrc`
 
 ``` vim
-let g:lazy_browser_pairs = {"Paragraph": ["{", "}"]}
+let g:vimproviser_pairs = {"Paragraph": ["{", "}"]}
 ```
 
 You can then map them with
 
 ``` vim
-:LazyBrowserMap Paragraph
+:VimproviserMap Paragraph
 ```
 
 There is no need to restrict yourself to movements if you feel adventurous
 
 ``` vim
-let g:lazy_browser_pairs = {"Yanks": ["yy", "pp"]}
+let g:vimproviser_pairs = {"Yanks": ["yy", "pp"]}
 ```
 
 ## Example mapping
 
 ``` vim
-nnoremap <space>B :LazyBrowserMap<space>
+nnoremap <space>B :VimproviserMap<space>
 ```
