@@ -15,18 +15,22 @@ let s:default_vimproviser_pairs = {
     \}
 
 if exists("g:vimproviser_pairs")
-    let g:vimproviser_pairs = extendnew(s:default_vimproviser_pairs, g:vimproviser_pairs)
+    let s:vimproviser_pairs = extendnew(s:default_vimproviser_pairs, g:vimproviser_pairs)
 else
-    let g:vimproviser_pairs = s:default_vimproviser_pairs
+    let s:vimproviser_pairs = s:default_vimproviser_pairs
 endif
 
 function! s:VimproviserMap(kind)
-    exec 'nnoremap h ' . g:vimproviser_pairs[a:kind][0]
-    exec 'nnoremap l ' . g:vimproviser_pairs[a:kind][1]
+    exec 'nnoremap h ' . s:vimproviser_pairs[a:kind][0]
+    exec 'nnoremap l ' . s:vimproviser_pairs[a:kind][1]
+endfunction
+
+function! VimproviserKinds()
+    return keys(s:vimproviser_pairs)
 endfunction
 
 function! s:ListKinds(ArgLead, CmdLine, CursorPos)
-    let options = keys(g:vimproviser_pairs)
+    let options = keys(s:vimproviser_pairs)
     let narrowed = []
     for option in options
         if option =~ a:ArgLead
