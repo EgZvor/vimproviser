@@ -47,8 +47,25 @@ There is no need to restrict yourself to movements if you feel adventurous
 let g:vimproviser_pairs = {"Yanks": ["yy", "pp"]}
 ```
 
-## Example mapping
+## Example mappings
 
 ``` vim
 nnoremap <space>B :VimproviserMap<space>
+```
+
+``` vim
+" Using garybernhardt/selecta
+function! ChooseKinds()
+    let kinds = VimproviserKinds()
+    try
+        let kind = system('printf "' . join(kinds, "\n") . '" | selecta | tr -d "\n"')
+    catch /Vim:Interrupt/
+        redraw!
+        return ""
+    endtry
+    redraw!
+    return kind
+endfunction
+
+nnoremap <leader>B <cmd>exec 'VimproviserMap ' . ChooseKinds()<cr>
 ```
