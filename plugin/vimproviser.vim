@@ -32,12 +32,20 @@ endfunction
 function! s:ListKinds(ArgLead, CmdLine, CursorPos)
     let options = keys(s:vimproviser_pairs)
     let narrowed = []
-    for option in options
-        if option =~ a:ArgLead
-            call add(narrowed, option)
+    if a:ArgLead != ""
+        if exists('*matchfuzzy')
+            let narrowed = matchfuzzy(options, a:ArgLead)
+        else
+            for option in options
+                if option =~ a:ArgLead
+                    call add(narrowed, option)
+                endif
+            endfor
         endif
-    endfor
-    return narrowed
+        return narrowed
+    else
+        return options
+    endif
 endfunction
 
 command -nargs=1 -complete=customlist,s:ListKinds VimproviserMap call s:VimproviserMap("<args>")
