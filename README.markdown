@@ -1,6 +1,7 @@
 # Vimproviser
 
-Remap `h` and `l` keys for common actions with an ease!
+A plugin for repeating movements (and everything else).
+Situationally remap `h` and `l` for common actions on the fly!
 
 ## How to use
 
