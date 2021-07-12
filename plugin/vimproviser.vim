@@ -5,13 +5,14 @@ endif
 let g:loaded_vimproviser = 1
 
 let s:default_vimproviser_pairs = {
-    \   "Literal": ["h", "l"],
-    \   "QuickFix": [":cprevious<cr>", ":cnext<cr>"],
-    \   "QuickFixFile": [":cpfile<cr>", ":cnfile<cr>"],
-    \   "LocationList": [":lprevious<cr>", ":lnext<cr>"],
-    \   "LocationListFile": [":lpfile<cr>", ":lnfile<cr>"],
-    \   "Tab": ["gT", "gt"],
-    \   "Macros": ["@h", "@l"],
+    \   "ArgList": [":previous", ":next"],
+    \   "Buffers": [":bprevious", ":bnext"],
+    \   "Changes": ["g;", "g,"],
+    \   "LocationList": [":lprevious", ":lnext"],
+    \   "LocationListFile": [":lpfile", ":lnfile"],
+    \   "QuickFix": [":cprevious", ":cnext"],
+    \   "QuickFixFile": [":cpfile", ":cnfile"],
+    \   "Tags": [":tprevious", ":tnext"],
     \}
 
 if exists("g:vimproviser_pairs")
@@ -20,17 +21,34 @@ else
     let s:vimproviser_pairs = s:default_vimproviser_pairs
 endif
 
-function! s:VimproviserMap(kind)
-    exec 'nnoremap h ' . s:vimproviser_pairs[a:kind][0]
-    exec 'nnoremap l ' . s:vimproviser_pairs[a:kind][1]
+function! s:qualified_rhs(rhs)
+    if a:rhs =~? ":"
+        return a:rhs . ""
+    return a:rhs
+endfunction
+
+function! s:map(kind)
+    if a:kind == "Literal"
+        nnoremap <plug>(vimproviser-left) h
+        nnoremap <plug>(vimproviser-right) l
+    else
+        nnoremap <plug>(vimproviser-left) @h
+        nnoremap <plug>(vimproviser-right) @l
+    endif
+
+    " a:kind does not match the regex
+    if "Macros\|Literal" !~? a:kind
+        let @h = s:qualified_rhs(s:vimproviser_pairs[a:kind][0])
+        let @l = s:qualified_rhs(s:vimproviser_pairs[a:kind][1])
+    endif
 endfunction
 
 function! VimproviserKinds()
-    return keys(s:vimproviser_pairs)
+    return sort(extendnew(keys(s:vimproviser_pairs), ["Literal", "Macros"]))
 endfunction
 
 function! s:ListKinds(ArgLead, CmdLine, CursorPos)
-    let options = keys(s:vimproviser_pairs)
+    let options = VimproviserKinds()
     let narrowed = []
     if a:ArgLead != ""
         if exists('*matchfuzzy')
@@ -48,4 +66,8 @@ function! s:ListKinds(ArgLead, CmdLine, CursorPos)
     endif
 endfunction
 
-command -nargs=1 -complete=customlist,s:ListKinds VimproviserMap call s:VimproviserMap("<args>")
+command -nargs=1 -complete=customlist,s:ListKinds VimproviserMap call s:map("<args>")
+
+nnoremap <plug>(vimproviser-left) h
+nnoremap <plug>(vimproviser-right) l
+nnoremap <plug>(vimproviser-show) <cmd>echo substitute('[ ' . getreg('h') . ' \| ' . getreg('l') . ' ]', '\r\n', '^M', "g")<cr>
