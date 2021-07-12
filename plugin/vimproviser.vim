@@ -22,7 +22,7 @@ else
 endif
 
 function! s:qualified_rhs(rhs)
-    if a:rhs =~? ":"
+    if a:rhs =~? "^:"
         return a:rhs . ""
     return a:rhs
 endfunction
@@ -38,8 +38,8 @@ function! s:map(kind)
 
     " a:kind does not match the regex
     if "Macros\|Literal" !~? a:kind
-        let @h = s:qualified_rhs(s:vimproviser_pairs[a:kind][0])
-        let @l = s:qualified_rhs(s:vimproviser_pairs[a:kind][1])
+        call setreg('h', s:qualified_rhs(s:vimproviser_pairs[a:kind][0]), "c")
+        call setreg('l', s:qualified_rhs(s:vimproviser_pairs[a:kind][1]), "c")
     endif
 endfunction
 
