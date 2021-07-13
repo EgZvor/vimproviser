@@ -66,8 +66,12 @@ function! s:ListKinds(ArgLead, CmdLine, CursorPos)
     endif
 endfunction
 
+function VimproviserStatus()
+    return '[ ' . substitute(getreg('h') . ' ' . getreg('l'), '', '<cr>', 'g') . ' ]'
+endfunction
+
+
 command -nargs=1 -complete=customlist,s:ListKinds VimproviserMap call s:map("<args>")
 
 nnoremap <plug>(vimproviser-left) h
 nnoremap <plug>(vimproviser-right) l
-nnoremap <plug>(vimproviser-show) <cmd>echo substitute('[ ' . getreg('h') . ' \| ' . getreg('l') . ' ]', '\r\n', '^M', "g")<cr>
