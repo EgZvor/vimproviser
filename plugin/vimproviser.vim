@@ -24,6 +24,7 @@ endif
 function! s:qualified_rhs(rhs)
     if a:rhs =~? "^:"
         return a:rhs . ""
+    endif
     return a:rhs
 endfunction
 
