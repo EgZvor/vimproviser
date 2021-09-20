@@ -1,7 +1,9 @@
 # Vimproviser
 
 A plugin for repeating movements (and everything else).
-Situationally remap `h` and `l` for common actions on the fly!
+TODO: review the docs.
+TODO: create vim doc
+Load common actions into `h` and `l` registers to be executed.
 
 ## How to use
 
