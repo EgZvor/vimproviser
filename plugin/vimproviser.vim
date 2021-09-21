@@ -16,16 +16,16 @@ let s:default_vimproviser_pairs = {
     \}
 
 if exists("g:vimproviser_pairs")
-    let s:vimproviser_pairs = extendnew(s:default_vimproviser_pairs, g:vimproviser_pairs)
+    let s:pairs = extendnew(s:default_vimproviser_pairs, g:vimproviser_pairs)
 else
-    let s:vimproviser_pairs = s:default_vimproviser_pairs
+    let s:pairs = s:default_vimproviser_pairs
 endif
 
 if ! exists("g:vimproviser_trigger_delay")
     let g:vimproviser_trigger_delay = 0.4
 endif
 
-function! s:qualified_rhs(rhs)
+function! s:qualified_rhs(rhs) abort
     if a:rhs =~? "^:"
         return a:rhs . ""
     endif
@@ -40,51 +40,32 @@ function! s:map(kind) abort
         nnoremap <plug>(vimproviser-left) @h
         nnoremap <plug>(vimproviser-right) @l
     else
-        let rhs = s:qualified_rhs(s:vimproviser_pairs[a:kind][0])
-        " TODO: rhs is already a trigger, we have to use saved trigger_dict
-        " values here. We should save them when creating a trigger.
-        let trigger_dict = maparg(rhs, 'n', 0, 1)
-        echoerr trigger_dict
-        if trigger_dict == {}
-            let real_rhs = rhs
-            let noremap = 1
-        else
-            let real_rhs = trigger_dict["rhs"]
-            let noremap = trigger_dict["noremap"]
-        endif
-        if noremap
-            execute 'nnoremap <plug>(vimproviser-left) ' . real_rhs
-        else
-            execute 'nmap <plug>(vimproviser-left) ' . real_rhs
-        endif
-        let rhs = s:qualified_rhs(s:vimproviser_pairs[a:kind][1])
-        let trigger_dict = maparg(rhs, 'n', 0, 1)
-        if trigger_dict == {}
-            let real_rhs = rhs
-            let noremap = 1
-        else
-            let real_rhs = trigger_dict["rhs"]
-            let noremap = trigger_dict["noremap"]
-        endif
-        if noremap
-            execute 'nnoremap <plug>(vimproviser-right) ' . real_rhs
-        else
-            execute 'nmap <plug>(vimproviser-right) ' . real_rhs
-        endif
-
+        " TODO: Refactor the shit out of this.
+        for [plug, pair_n] in [['<plug>(vimproviser-left)', 0], ['<plug>(vimproviser-right)', 1]]
+            let rhs = s:qualified_rhs(s:pairs[a:kind][pair_n])
+            let trigger_dict = get(s:original_mappings, rhs, maparg(rhs, 'n', 0, 1))
+            if trigger_dict == {}
+                let real_rhs = rhs
+                let noremap = 1
+            else
+                let real_rhs = trigger_dict["rhs"]
+                let noremap = trigger_dict["noremap"]
+            endif
+            if noremap
+                execute 'nnoremap ' . plug . ' ' . real_rhs
+            else
+                execute 'nmap ' . plug . ' ' . real_rhs
+            endif
+        endfor
     endif
-    " " a:kind does not match the regex
-    " if "Macros\|Characters" !~? a:kind
-    "     call setreg('h', s:qualified_rhs(s:vimproviser_pairs[a:kind][0]), "c")
-    "     call setreg('l', s:qualified_rhs(s:vimproviser_pairs[a:kind][1]), "c")
-    " endif
+    let g:vimproviser_current_kind = a:kind
 endfunction
 
-function! VimproviserKinds()
-    return sort(extendnew(keys(s:vimproviser_pairs), ["Characters", "Macros"]))
+function! VimproviserKinds() abort
+    return sort(extendnew(keys(s:pairs), ["Characters", "Macros"]))
 endfunction
 
-function! s:ListKinds(ArgLead, CmdLine, CursorPos)
+function! s:ListKinds(ArgLead, CmdLine, CursorPos) abort
     let options = VimproviserKinds()
     let narrowed = []
     if a:ArgLead != ""
@@ -103,30 +84,21 @@ function! s:ListKinds(ArgLead, CmdLine, CursorPos)
     endif
 endfunction
 
-function VimproviserStatus()
-    return '[ ' . substitute(getreg('h') . ' ' . getreg('l'), '', '<cr>', 'g') . ' ]'
+function VimproviserStatus() abort
+    " return '[ ' . substitute(getreg('h') . ' ' . getreg('l'), '', '<cr>', 'g') . ' ]'
+    return g:vimproviser_current_kind
 endfunction
 
-let s:vimproviser_last_triggered = {}
-call map(VimproviserKinds(), 'extend(s:vimproviser_last_triggered, {v:val: 0.0})')
-
-let s:vimproviser_last_triggered = {
-    \   "ArgList": 0.0,
-    \   "Characters": 0.0,
-    \   "Buffers": 0.0,
-    \   "Changes": 0.0,
-    \   "LocationList": 0.0,
-    \   "LocationListFile": 0.0,
-    \   "QuickFix": 0.0,
-    \   "QuickFixFile": 0.0,
-    \   "Tags": 0.0,
-    \}
+let s:original_mappings = {}
+let s:last_triggered = {}
 
 
-function VimproviserTrigger(kind)
+function s:trigger_and_map(kind) abort
+    " Check if provided kind was triggered less than
+    " g:vimproviser_trigger_delay seconds ago
     let new = reltimefloat(reltime())
-    let old = s:vimproviser_last_triggered[a:kind]
-    let s:vimproviser_last_triggered[a:kind] = new
+    let old = get(s:last_triggered, a:kind, 0.0)
+    let s:last_triggered[a:kind] = new
     if (new - old) < g:vimproviser_trigger_delay
         if confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
             call s:map(a:kind)
@@ -136,7 +108,8 @@ endfunction
 
 
 function s:rhs_and_vimprovise(rhs, kind, noremap) abort
-    call VimproviserTrigger(a:kind)
+    " Trigger specified kind and evaluate rhs correctly
+    call s:trigger_and_map(a:kind)
 
     if a:noremap == 1
         let normal = 'normal! '
@@ -160,7 +133,8 @@ function s:rhs_and_vimprovise(rhs, kind, noremap) abort
 endfunction
 
 
-function VimproviserMapTrigger(trigger_lhs, kind)
+function VimproviserMapTrigger(trigger_lhs, kind) abort
+    " Map provided lhs to whatever it was mapped to + triggering specified kind
     let trigger_dict = maparg(a:trigger_lhs, 'n', 0, 1)
     if trigger_dict == {}
         let lhs = a:trigger_lhs
@@ -171,6 +145,8 @@ function VimproviserMapTrigger(trigger_lhs, kind)
         let rhs = trigger_dict["rhs"]
         let noremap = trigger_dict["noremap"]
     endif
+    " Save original rhs to map <plug>(vimproviser-*) to it
+    let s:original_mappings[a:trigger_lhs] = {"rhs": rhs, "noremap": noremap}
     execute 'nnoremap ' . lhs . " <cmd>call <sid>rhs_and_vimprovise('" . substitute(rhs, '<', '<lt>', '') .  "', '" . a:kind . "', " . noremap . ")<cr>"
 endfunction
 
