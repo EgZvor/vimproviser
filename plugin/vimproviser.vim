@@ -66,7 +66,7 @@ endfunction
 command -nargs=0 VimproviserLast call s:map_last_triggered()
 
 function! s:all_pairs() abort
-    return sort(extendnew(keys(s:pairs), ["Characters", "Macros"]))
+    return sort(keys(s:pairs))
 endfunction
 
 function! s:list_pairs(ArgLead, CmdLine, CursorPos) abort
