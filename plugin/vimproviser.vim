@@ -21,9 +21,11 @@ else
     let s:pairs = s:default_vimproviser_pairs
 endif
 
-if ! exists("g:vimproviser_trigger_delay")
-    let g:vimproviser_trigger_delay = 0.4
+if ! exists("g:vimproviser_trigger_frequency")
+    let g:vimproviser_trigger_frequency = 3
 endif
+
+let s:vimproviser_trigger_window = 60
 
 function! s:qualified_rhs(rhs) abort
     if a:rhs =~? "^:"
@@ -93,23 +95,29 @@ let s:original_mappings = {}
 let s:last_triggered = {}
 
 
-function s:trigger_and_map(kind) abort
-    " Check if provided kind was triggered less than
-    " g:vimproviser_trigger_delay seconds ago
-    let new = reltimefloat(reltime())
-    let old = get(s:last_triggered, a:kind, 0.0)
-    let s:last_triggered[a:kind] = new
-    if (new - old) < g:vimproviser_trigger_delay
-        if confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
-            call s:map(a:kind)
-        endif
+function s:trigger_and_suggest_mapping(kind) abort
+    " Check if provided kind was triggered more than
+    " g:vimproviser_trigger_frequency times in the last minute
+    let now = reltimefloat(reltime())
+    if ! has_key(s:last_triggered, a:kind)
+        let s:last_triggered[a:kind] = []
+    endif
+    let kind_trigger_times = s:last_triggered[a:kind]
+    " Filter out old trigger info
+    call filter(kind_trigger_times, {idx, val -> val >= (now - s:vimproviser_trigger_window)})
+    if len(kind_trigger_times) < g:vimproviser_trigger_frequency
+        call add(kind_trigger_times, now)
+    endif
+    if len(kind_trigger_times) >= g:vimproviser_trigger_frequency
+    \  && confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
+        call s:map(a:kind)
     endif
 endfunction
 
 
 function s:rhs_and_vimprovise(rhs, kind, noremap) abort
     " Trigger specified kind and evaluate rhs correctly
-    call s:trigger_and_map(a:kind)
+    call s:trigger_and_suggest_mapping(a:kind)
 
     if a:noremap == 1
         let normal = 'normal! '
