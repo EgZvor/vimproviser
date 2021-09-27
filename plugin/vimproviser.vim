@@ -3,27 +3,26 @@ if exists('g:loaded_vimproviser')
 endif
 
 let g:loaded_vimproviser = 1
-
-let s:default_vimproviser_pairs = {
+let s:default_pairs = {
     \   "ArgList": [":previous", ":next"],
     \   "Buffers": [":bprevious", ":bnext"],
     \   "Changes": ["g;", "g,"],
+    \   "Characters": ["<left>", "<right>"],
     \   "LocationList": [":lprevious", ":lnext"],
     \   "LocationListFile": [":lpfile", ":lnfile"],
+    \   "Macros": ["@h", "@l"],
     \   "QuickFix": [":cprevious", ":cnext"],
     \   "QuickFixFile": [":cpfile", ":cnfile"],
     \   "Tags": [":tprevious", ":tnext"],
     \}
-
 if exists("g:vimproviser_pairs")
-    let s:pairs = extendnew(s:default_vimproviser_pairs, g:vimproviser_pairs)
+    let s:pairs = extendnew(s:default_pairs, g:vimproviser_pairs)
 else
-    let s:pairs = s:default_vimproviser_pairs
+    let s:pairs = s:default_pairs
 endif
-
-let s:vimproviser_trigger_enabled = 1
-let s:vimproviser_trigger_frequency = {}
-let s:vimproviser_trigger_window = 15
+let s:original_mappings = {}
+let s:current_kind = ''
+let s:last_triggered_kind = ''
 
 function! s:qualified_rhs(rhs) abort
     if a:rhs =~? "^:"
@@ -32,35 +31,39 @@ function! s:qualified_rhs(rhs) abort
     return a:rhs
 endfunction
 
-function! s:map(kind) abort
-    if a:kind == "Characters"
-        nnoremap <plug>(vimproviser-left) <left>
-        nnoremap <plug>(vimproviser-right) <right>
-    elseif a:kind == "Macros"
-        nnoremap <plug>(vimproviser-left) @h
-        nnoremap <plug>(vimproviser-right) @l
-    else
-        " TODO: Refactor the shit out of this.
-        for [plug, pair_n] in [['<plug>(vimproviser-left)', 0], ['<plug>(vimproviser-right)', 1]]
-            let rhs = s:qualified_rhs(s:pairs[a:kind][pair_n])
-            let trigger_dict = get(s:original_mappings, rhs, maparg(rhs, 'n', 0, 1))
-            if trigger_dict == {}
-                let real_rhs = rhs
-                let noremap = 1
-            else
-                let real_rhs = trigger_dict["rhs"]
-                let noremap = trigger_dict["noremap"]
-            endif
-            if noremap
-                execute 'nnoremap ' . plug . ' ' . real_rhs
-            else
-                execute 'nmap ' . plug . ' ' . real_rhs
-            endif
-        endfor
+function! s:original_maparg(lhs) abort
+    if ! has_key(s:original_mappings, a:lhs)
+        let maparg_dict = maparg(a:lhs, 'n', 0, 1)
+        if maparg_dict == {}
+            let maparg_dict = {"rhs": a:lhs, "noremap": 1}
+        endif
+        let s:original_mappings[a:lhs] = filter(maparg_dict, {key, val -> key == 'rhs' || key == 'noremap'})
     endif
-    let s:vimproviser_trigger_enabled = 1
-    let g:vimproviser_current_kind = a:kind
+    return s:original_mappings[a:lhs]
 endfunction
+
+function! s:map(kind) abort
+    for [plug, rhs] in [
+    \   ['<plug>(vimproviser-left)',  s:qualified_rhs(s:pairs[a:kind][0])],
+    \   ['<plug>(vimproviser-right)', s:qualified_rhs(s:pairs[a:kind][1])],
+    \]
+        let original_maparg = s:original_maparg(rhs)
+        if original_maparg["noremap"]
+            execute 'nnoremap ' . plug . ' ' . original_maparg["rhs"]
+        else
+            execute 'nmap '     . plug . ' ' . original_maparg["rhs"]
+        endif
+    endfor
+    let s:current_kind = a:kind
+endfunction
+
+function! s:map_last_triggered() abort
+    if s:last_triggered_kind != '' && s:last_triggered_kind != s:current_kind
+        call s:map(s:last_triggered_kind)
+    endif
+endfunction
+
+command -nargs=0 VimproviserLast call s:map_last_triggered()
 
 function! VimproviserKinds() abort
     return sort(extendnew(keys(s:pairs), ["Characters", "Macros"]))
@@ -85,59 +88,27 @@ function! s:ListKinds(ArgLead, CmdLine, CursorPos) abort
     endif
 endfunction
 
-function VimproviserStatus() abort
-    return g:vimproviser_current_kind
+function! VimproviserStatus() abort
+    return s:current_kind
 endfunction
 
-let s:original_mappings = {}
-let s:last_triggered = {}
-
-
-" TODO: extract triggerring functions into autoload
-function s:trigger_and_suggest_mapping(kind) abort
-    " Check if provided kind was triggered more than
-    " g:vimproviser_trigger_frequency times in the last 15 seconds
-    let trigger_frequency = get(s:vimproviser_trigger_frequency, a:kind, 3)
-    let now = reltimefloat(reltime())
-    if ! has_key(s:last_triggered, a:kind)
-        let s:last_triggered[a:kind] = []
-    endif
-    let kind_trigger_times = s:last_triggered[a:kind]
-    " Filter out old trigger info
-    call filter(kind_trigger_times, {idx, val -> val >= (now - s:vimproviser_trigger_window)})
-    if len(kind_trigger_times) < trigger_frequency
-        call add(kind_trigger_times, now)
-    endif
-    if len(kind_trigger_times) >= trigger_frequency
-        if confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
-            call s:map(a:kind)
-        else
-            let s:vimproviser_trigger_enabled = 0
-        endif
-    endif
-endfunction
-
-
-function s:rhs_and_vimprovise(rhs, kind, noremap) abort
-    " Trigger specified kind and evaluate rhs correctly
-    if s:vimproviser_trigger_enabled && g:vimproviser_current_kind != a:kind
-        call s:trigger_and_suggest_mapping(a:kind)
-    endif
-
-    if a:noremap == 1
+function! s:eval(maparg_dict) abort
+    let rhs = a:maparg_dict["rhs"]
+    let noremap = a:maparg_dict["noremap"]
+    if noremap == 1
         let normal = 'normal! '
     else
         let normal = 'normal '
     endif
 
-    if '<plug>' =~? a:rhs
-        let cmd = normal . a:rhs
+    if '<plug>' =~? rhs
+        let command =  rhs
     else
-        let cmd = normal . eval('"' . escape(a:rhs, '<') . '"')
+        let command =  eval('"' . escape(rhs, '<') . '"')
     endif
 
     try
-        execute cmd
+        execute normal . command
     catch /^Vim\%((\a\+)\)\=:E/
         echohl ErrorMsg
         echomsg substitute(v:exception, '.*\zeE\d\+', '', '')
@@ -145,25 +116,18 @@ function s:rhs_and_vimprovise(rhs, kind, noremap) abort
     endtry
 endfunction
 
+function! s:trigger_and_eval(kind, maparg_dict) abort
+    let s:last_triggered_kind = a:kind
+    call s:eval(a:maparg_dict)
+endfunction
 
-function VimproviserMapTrigger(trigger_lhs, kind, frequency = 3) abort
-    " Map provided lhs to whatever it was mapped to + triggering specified kind
-    let trigger_dict = maparg(a:trigger_lhs, 'n', 0, 1)
-    let s:vimproviser_trigger_frequency[a:kind] = a:frequency
-    if trigger_dict == {}
-        let lhs = a:trigger_lhs
-        let rhs = a:trigger_lhs
-        let noremap = 1
-    else
-        let lhs = trigger_dict["lhs"]
-        let rhs = trigger_dict["rhs"]
-        let noremap = trigger_dict["noremap"]
-    endif
-    " Save original rhs to map <plug>(vimproviser-*) to it
-    let s:original_mappings[a:trigger_lhs] = {"rhs": rhs, "noremap": noremap}
-    execute 'nnoremap ' . lhs . " <cmd>call <sid>rhs_and_vimprovise('" . substitute(rhs, '<', '<lt>', '') .  "', '" . a:kind . "', " . noremap . ")<cr>"
+function! VimproviserRegisterTrigger(trigger_lhs, kind) abort
+    " Make `lhs` trigger `kind`
+    let original_maparg = s:original_maparg(a:trigger_lhs)
+    execute 'nnoremap ' . a:trigger_lhs
+    \   . " <cmd>call <sid>trigger_and_eval('" . a:kind . "', " . substitute(string(original_maparg), '<', '<lt>', '') . ")<cr>"
 endfunction
 
 command -nargs=1 -complete=customlist,s:ListKinds VimproviserMap call s:map("<args>")
 
-VimproviserMap Characters
+call s:map("Characters")
