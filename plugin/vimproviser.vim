@@ -21,10 +21,7 @@ else
     let s:pairs = s:default_vimproviser_pairs
 endif
 
-" if ! exists("g:vimproviser_trigger_frequency")
-"     let g:vimproviser_trigger_frequency = 3
-" endif
-"
+let s:vimproviser_trigger_enabled = 1
 let s:vimproviser_trigger_frequency = {}
 let s:vimproviser_trigger_window = 15
 
@@ -61,6 +58,7 @@ function! s:map(kind) abort
             endif
         endfor
     endif
+    let s:vimproviser_trigger_enabled = 1
     let g:vimproviser_current_kind = a:kind
 endfunction
 
@@ -111,15 +109,20 @@ function s:trigger_and_suggest_mapping(kind) abort
         call add(kind_trigger_times, now)
     endif
     if len(kind_trigger_times) >= trigger_frequency
-    \  && confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
-        call s:map(a:kind)
+        if confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
+            call s:map(a:kind)
+        else
+            let s:vimproviser_trigger_enabled = 0
+        endif
     endif
 endfunction
 
 
 function s:rhs_and_vimprovise(rhs, kind, noremap) abort
     " Trigger specified kind and evaluate rhs correctly
-    call s:trigger_and_suggest_mapping(a:kind)
+    if s:vimproviser_trigger_enabled && g:vimproviser_current_kind != a:kind
+        call s:trigger_and_suggest_mapping(a:kind)
+    endif
 
     if a:noremap == 1
         let normal = 'normal! '
