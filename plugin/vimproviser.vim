@@ -21,11 +21,12 @@ else
     let s:pairs = s:default_vimproviser_pairs
 endif
 
-if ! exists("g:vimproviser_trigger_frequency")
-    let g:vimproviser_trigger_frequency = 3
-endif
-
-let s:vimproviser_trigger_window = 60
+" if ! exists("g:vimproviser_trigger_frequency")
+"     let g:vimproviser_trigger_frequency = 3
+" endif
+"
+let s:vimproviser_trigger_frequency = {}
+let s:vimproviser_trigger_window = 15
 
 function! s:qualified_rhs(rhs) abort
     if a:rhs =~? "^:"
@@ -87,7 +88,6 @@ function! s:ListKinds(ArgLead, CmdLine, CursorPos) abort
 endfunction
 
 function VimproviserStatus() abort
-    " return '[ ' . substitute(getreg('h') . ' ' . getreg('l'), '', '<cr>', 'g') . ' ]'
     return g:vimproviser_current_kind
 endfunction
 
@@ -95,9 +95,11 @@ let s:original_mappings = {}
 let s:last_triggered = {}
 
 
+" TODO: extract triggerring functions into autoload
 function s:trigger_and_suggest_mapping(kind) abort
     " Check if provided kind was triggered more than
-    " g:vimproviser_trigger_frequency times in the last minute
+    " g:vimproviser_trigger_frequency times in the last 15 seconds
+    let trigger_frequency = get(s:vimproviser_trigger_frequency, a:kind, 3)
     let now = reltimefloat(reltime())
     if ! has_key(s:last_triggered, a:kind)
         let s:last_triggered[a:kind] = []
@@ -105,10 +107,10 @@ function s:trigger_and_suggest_mapping(kind) abort
     let kind_trigger_times = s:last_triggered[a:kind]
     " Filter out old trigger info
     call filter(kind_trigger_times, {idx, val -> val >= (now - s:vimproviser_trigger_window)})
-    if len(kind_trigger_times) < g:vimproviser_trigger_frequency
+    if len(kind_trigger_times) < trigger_frequency
         call add(kind_trigger_times, now)
     endif
-    if len(kind_trigger_times) >= g:vimproviser_trigger_frequency
+    if len(kind_trigger_times) >= trigger_frequency
     \  && confirm('Would you like to Vimprovise with: ' . a:kind . '?', "&Yes\n&No", 2) == 1
         call s:map(a:kind)
     endif
@@ -141,9 +143,10 @@ function s:rhs_and_vimprovise(rhs, kind, noremap) abort
 endfunction
 
 
-function VimproviserMapTrigger(trigger_lhs, kind) abort
+function VimproviserMapTrigger(trigger_lhs, kind, frequency = 3) abort
     " Map provided lhs to whatever it was mapped to + triggering specified kind
     let trigger_dict = maparg(a:trigger_lhs, 'n', 0, 1)
+    let s:vimproviser_trigger_frequency[a:kind] = a:frequency
     if trigger_dict == {}
         let lhs = a:trigger_lhs
         let rhs = a:trigger_lhs
