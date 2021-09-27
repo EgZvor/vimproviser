@@ -1,11 +1,19 @@
 # Vimproviser
 
-A plugin for repeating movements (and everything else).
-TODO: review the docs.
-TODO: create vim doc
-Load common actions into `h` and `l` registers to be executed.
+Vimproviser was designed to repeat motions.
+
+Vimproviser provides commands and mappings that allow for a quick remapping of
+two of your most convenient keys to actions that are most important for you
+right now.
 
 ## How to use
+
+Map some convenient keys to Vimproviser mappings
+
+``` vim
+nmap h <plug>(vimproviser-left)
+nmap l <plug>(vimproviser-right)
+```
 
 Run the command to choose situational mappings for `h` and `l`
 
@@ -19,56 +27,14 @@ will remap `h` to `:cprevious<cr>` and `l` to `:cnext<cr>`.
 
 Try other arguments
 ``` vim
-" gT and gt
-:VimproviserMap Tab
+" :bprevious and :bnext
+:VimproviserMap Buffers
 " @h and @l -- improvise away!
 :VimproviserMap Macros
 " h and l -- boooring
-:VimproviserMap Literal
+:VimproviserMap Characters
 ```
 
-Use completion `<c-d>` to see all available options.
+Use `<c-d>` (`:h cmdline-completion`) to see all available options.
 
-## Configuration
-
-To add your mappings to the default ones,
-define the `g:vimproviser_pairs` variable in your `.vimrc`
-
-``` vim
-let g:vimproviser_pairs = {"Paragraph": ["{", "}"]}
-```
-
-You can then map them with
-
-``` vim
-:VimproviserMap Paragraph
-```
-
-There is no need to restrict yourself to movements if you feel adventurous
-
-``` vim
-let g:vimproviser_pairs = {"Yanks": ["yy", "pp"]}
-```
-
-## Example mappings
-
-``` vim
-nnoremap <space>B :VimproviserMap<space>
-```
-
-``` vim
-" Using garybernhardt/selecta
-function! ChooseKinds()
-    let kinds = VimproviserKinds()
-    try
-        let kind = system('printf "' . join(kinds, "\n") . '" | selecta | tr -d "\n"')
-    catch /Vim:Interrupt/
-        redraw!
-        return ""
-    endtry
-    redraw!
-    return kind
-endfunction
-
-nnoremap <leader>B <cmd>exec 'VimproviserMap ' . ChooseKinds()<cr>
-```
+Read the comprehensive documentation in `:h vimproviser`.

@@ -1,0 +1,190 @@
+*vimproviser.txt*	For Vim version 7.3	Last change: 2021 September 27
+
+Vimproviser was designed to repeat motions.
+
+Author:        Egor Zvorykin
+Repo:          https://github.com/egzvor/vimproviser
+License:       Same terms as Vim itself (see |license|)
+
+==============================================================================
+CONTENTS				*vimproviser-contents*
+
+QUICK START			|vimproviser-quick-start|
+CONFIGURATION			|vimproviser-configuration|
+MAPPINGS			|vimproviser-mappings|
+COMMANDS			|vimproviser-commands|
+TROUBLESHOOTING			|vimproviser-troubleshooting|
+
+==============================================================================
+QUICK START				*vimproviser-quick-start*
+
+*vimproviser* provides commands and mappings that allow for a quick remapping
+of two of your most convenient keys to actions that are most important for you
+right now.
+
+First map some keys to |<Plug>(vimproviser-left)| and
+|<Plug>(vimproviser-right)|. For example,
+>
+    nmap h <Plug>(vimproviser-left)
+    nmap l <Plug>(vimproviser-right)
+<
+
+Now try these commands and see what actions are performed when you press
+mapped keys
+>
+    VimproviserMap Paragraph
+    VimproviserMap QuickFix
+<
+
+Define a new Vimproviser pair. |g:vimproviser_pairs|.
+>
+    let g:vimproviser_pairs = {"Paragraphs": ["{", "}"]}
+<
+
+Create Vimproviser triggers out of some keys. |g:vimproviser_triggers|.
+>
+    let g:vimproviser_triggers = {"QuickFix": ["[q", "]q"}
+<
+
+==============================================================================
+CONFIGURATION				*vimproviser-configuration*
+
+Vimproviser can be configured in two ways. You can define your own Vimproviser
+"pairs" and "triggers".
+
+------------------------------------------------------------------------------
+g:vimproviser_pairs			*g:vimproviser_pairs*
+
+Default:
+>
+    {
+        \   "ArgList": [":previous", ":next"],
+        \   "Buffers": [":bprevious", ":bnext"],
+        \   "Changes": ["g;", "g,"],
+        \   "Characters": ["<left>", "<right>"],
+        \   "LocationList": [":lprevious", ":lnext"],
+        \   "LocationListFile": [":lpfile", ":lnfile"],
+        \   "Macros": ["@h", "@l"],
+        \   "QuickFix": [":cprevious", ":cnext"],
+        \   "QuickFixFile": [":cpfile", ":cnfile"],
+        \   "Tags": [":tprevious", ":tnext"],
+    \}
+<
+
+To define a new pair introduce the |g:vimproviser_pairs| global variable of
+type `Dictionary` where keys are pair names and values are a `List` with
+exactly two values corresponding to left and right mapping. For example:
+>
+    let g:vimproviser_pairs = {
+    \   "Paragraphs": ["{", "}"],
+    \   "Chunks": ["[c", "]c"],
+    \   "AleErrors": ["_p", "_n"],
+    \   "AleErrors2": [":ALENext", ":ALEPrevious"],
+    \ }
+<
+
+This dictionary will be merged with the default one. Your dictionary will take
+precedence, so you can redefine any default pair. Defining this variable will
+allow you to use the new pairs with |VimproviserMap| and mention them in
+|g:vimproviser_triggers|. You can use default keys, like {, as well as
+mappings defined by plugins and you (See the caveat in
+|VimproviserRegisterTriggers|), and also commands ( Note the missing <cr> ).
+
+------------------------------------------------------------------------------
+g:vimproviser_triggers			*g:vimproviser_triggers*
+
+Adding an entry to |g:vimproviser_triggers| (mapping from PairName to a `List`
+of keys) makes each of these keys a trigger for PairName. (Note the original
+function of these keys is still performed, they don't become useless). When
+you then call |VimproviserLast| Vimproviser will map |vimproviser-mappings| to
+the last triggered pair. This allows you to avoid calling |VimproviserMap|
+with a particular pair name directly and instead rely on the use of triggers.
+
+For example, define:
+>
+    let s:vimproviser_triggers = {
+    \    'QuickFix': ['[q', ']q'],
+    \    'Tags': ['[t', ']t', ']T', '[T],
+    \}
+<
+
+Now whenever you press [q and then call |VimproviserLast| Vimproviser will map
+your convenient keys to |quickfix| movements ( `:cprevious` , `:cnext` ).
+After you are finished with going through quickfix list you decide to jump to
+some tags with multiple definitions `:tjump` . Pressing [t and calling
+|VimproviserLast| again will map to the "Tags" pair.
+
+It is recommended to map |VimproviserLast| to fully exploit triggers. For
+example:
+>
+    nnoremap <leader><cr> :VimproviserLast<cr>
+<
+
+==============================================================================
+MAPPINGS				*vimproviser-mappings*
+
+<Plug>(vimproviser-left)		*<Plug>(vimproviser-left)*
+<Plug>(vimproviser-right)		*<Plug>(vimproviser-right)*
+
+These are the only mappings provided by Vimproviser. They will be mapped to
+whatever a currently chosen pair specifies. Choose some convenient keys for
+these mappings. See |vimproviser-configuration|.
+
+==============================================================================
+COMMANDS				*vimproviser-commands*
+
+:VimproviserMap {PairName}			*VimproviserMap*
+
+Map |vimproviser-mappings| to the specified pair's actions. Default pairs are:
+
+  * ArgList ( `:previous`, `:next` )
+  * Buffers ( `:bprevious`, `:bnext` )
+  * Changes ( `g;`, `g,` )
+  * Characters ( `<left>`, `<right>` )
+  * LocationList ( `:lprevious`, `:lnext` )
+  * LocationListFile ( `:lpfile`, `:lnfile` )
+  * Macros (@h and @l, see `@` )
+  * QuickFix ( `:cprevious`, `:cnext` )
+  * QuickFixFile ( `:cpfile`, `:cnfile` )
+  * Tags ( `:tprevious`, `:tnext` )
+
+You can define your own pair |g:vimproviser_pairs|. Use Tim Pope's
+vim-unimpaired plugin for inspiration.
+
+:VimproviserLast				*VimproviserLast*
+
+Only works if you defined |g:vimproviser_triggers|. Will map the latest
+triggered pair the same way |VimproviserMap| does. The difference is that you
+don't need to specify an argument.
+
+:VimproviserRegisterTriggers			*VimproviserRegisterTriggers*
+
+This is a technical command, it is only necessary if you want to make a
+trigger out of your own mappings defined in an `after-directory`. In this case
+you need to call this command after your mapping is defined. One place where
+you could do that is in .vim/after/plugin/config/vimproviser.vim . Note ,
+however, that you have to make sure your mapping is defined by that time, if
+it is not you can force the loading of the script that defines it with
+`:runtime` like so
+>
+    " Inside .vim/after/plugin/config/vimproviser.vim
+    runtime after/plugin/config/ale.vim
+    VimproviserRegisterTriggers
+<
+
+==============================================================================
+TROUBLESHOOTING				*vimproviser-troubleshooting*
+
+Things to check if something does not work:
+
+    * See |VimproviserRegisterTriggers|
+    * Check out the output of `:map` for your chosen keybindings to
+      |<Plug>(vimproviser-left)| and |<Plug>(vimproviser-right)|
+    * Check out the output of `:map` for |vimproviser-mappings|
+>
+          map <plug>(vimproviser-left)
+          map <plug>(vimproviser-right)
+<
+    * Ask me on Reddit u/egzvor :)
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
