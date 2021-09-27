@@ -21,8 +21,8 @@ else
     let s:pairs = s:default_pairs
 endif
 let s:original_mappings = {}
-let s:current_kind = ''
-let s:last_triggered_kind = ''
+let s:current_pair = ''
+let s:last_triggered_pair = ''
 
 function! s:qualified_rhs(rhs) abort
     if a:rhs =~? "^:"
@@ -42,10 +42,10 @@ function! s:original_maparg(lhs) abort
     return s:original_mappings[a:lhs]
 endfunction
 
-function! s:map(kind) abort
+function! s:map(pair_name) abort
     for [plug, rhs] in [
-    \   ['<plug>(vimproviser-left)',  s:qualified_rhs(s:pairs[a:kind][0])],
-    \   ['<plug>(vimproviser-right)', s:qualified_rhs(s:pairs[a:kind][1])],
+    \   ['<plug>(vimproviser-left)',  s:qualified_rhs(s:pairs[a:pair_name][0])],
+    \   ['<plug>(vimproviser-right)', s:qualified_rhs(s:pairs[a:pair_name][1])],
     \]
         let original_maparg = s:original_maparg(rhs)
         if original_maparg["noremap"]
@@ -54,23 +54,23 @@ function! s:map(kind) abort
             execute 'nmap '     . plug . ' ' . original_maparg["rhs"]
         endif
     endfor
-    let s:current_kind = a:kind
+    let s:current_pair = a:pair_name
 endfunction
 
 function! s:map_last_triggered() abort
-    if s:last_triggered_kind != '' && s:last_triggered_kind != s:current_kind
-        call s:map(s:last_triggered_kind)
+    if s:last_triggered_pair != '' && s:last_triggered_pair != s:current_pair
+        call s:map(s:last_triggered_pair)
     endif
 endfunction
 
 command -nargs=0 VimproviserLast call s:map_last_triggered()
 
-function! VimproviserKinds() abort
+function! s:all_pairs() abort
     return sort(extendnew(keys(s:pairs), ["Characters", "Macros"]))
 endfunction
 
-function! s:ListKinds(ArgLead, CmdLine, CursorPos) abort
-    let options = VimproviserKinds()
+function! s:list_pairs(ArgLead, CmdLine, CursorPos) abort
+    let options = s:all_pairs()
     let narrowed = []
     if a:ArgLead != ""
         if exists('*matchfuzzy')
@@ -89,7 +89,7 @@ function! s:ListKinds(ArgLead, CmdLine, CursorPos) abort
 endfunction
 
 function! VimproviserStatus() abort
-    return s:current_kind
+    return s:current_pair
 endfunction
 
 function! s:eval(maparg_dict) abort
@@ -116,18 +116,30 @@ function! s:eval(maparg_dict) abort
     endtry
 endfunction
 
-function! s:trigger_and_eval(kind, maparg_dict) abort
-    let s:last_triggered_kind = a:kind
+function! s:trigger_and_eval(pair_name, maparg_dict) abort
+    let s:last_triggered_pair = a:pair_name
     call s:eval(a:maparg_dict)
 endfunction
 
-function! VimproviserRegisterTrigger(trigger_lhs, kind) abort
-    " Make `lhs` trigger `kind`
+function! s:register_trigger(trigger_lhs, pair_name) abort
+    " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
     execute 'nnoremap ' . a:trigger_lhs
-    \   . " <cmd>call <sid>trigger_and_eval('" . a:kind . "', " . substitute(string(original_maparg), '<', '<lt>', '') . ")<cr>"
+    \   . " <cmd>call <sid>trigger_and_eval('" . a:pair_name . "', " . substitute(string(original_maparg), '<', '<lt>', '') . ")<cr>"
 endfunction
 
-command -nargs=1 -complete=customlist,s:ListKinds VimproviserMap call s:map("<args>")
+function! s:register_triggers() abort
+    if ! exists('g:vimproviser_triggers')
+        return
+    endif
+    for [pair_name, lhs_list] in items(g:vimproviser_triggers)
+        for lhs in lhs_list
+            call s:register_trigger(lhs, pair_name)
+        endfor
+    endfor
+endfunction
+
+command -nargs=1 -complete=customlist,s:list_pairs VimproviserMap call s:map("<args>")
+command -nargs=0 VimproviserRegisterTriggers call s:register_triggers()
 
 call s:map("Characters")
