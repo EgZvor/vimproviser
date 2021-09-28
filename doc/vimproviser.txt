@@ -179,11 +179,16 @@ don't need to specify an argument.
 ==============================================================================
 FUNCTIONS				*vimproviser-functions*
 
+VimproviserStatus()			*VimproviserStatus()*
+
+Add %{VimproviserStatus()} to your statusline to get an indicator of which
+pair is mapped at the moment.
+
 VimproviserRegisterTriggers()			*VimproviserRegisterTriggers()*
 
-This is a technical function, it is only necessary if you want to make a
-trigger out of your own mappings defined in an `after-directory`. In this case
-you need to call this command after your mapping is defined.
+Warning: this is a technical function, it is only necessary if you want to
+make a trigger out of your own mappings defined in an `after-directory`. In
+this case you need to call this command after your mapping is defined.
 
 One place where you could do that is in
 .vim/after/plugin/config/vimproviser.vim, but you have to make sure your
