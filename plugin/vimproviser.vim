@@ -23,6 +23,7 @@ endif
 let s:original_mappings = {}
 let s:current_pair = ''
 let s:last_triggered_pair = ''
+let s:triggers_registered = 0
 
 if has('patch-8.2.1978')
     let s:cmd_map = '<cmd> '
@@ -70,12 +71,14 @@ function! s:map(pair_name) abort
 endfunction
 
 function! s:map_last_triggered() abort
+    if ! s:triggers_registered
+        call s:error('VimproviserLast requires g:vimproviser_triggers to be defined')
+        return
+    endif
     if s:last_triggered_pair != '' && s:last_triggered_pair != s:current_pair
         call s:map(s:last_triggered_pair)
     endif
 endfunction
-
-command -nargs=0 VimproviserLast call s:map_last_triggered()
 
 function! s:all_pairs() abort
     return sort(keys(s:pairs))
@@ -98,10 +101,6 @@ function! s:list_pairs(ArgLead, CmdLine, CursorPos) abort
     else
         return options
     endif
-endfunction
-
-function! VimproviserStatus() abort
-    return s:current_pair
 endfunction
 
 function! s:error(message) abort
@@ -150,10 +149,19 @@ function! s:register_trigger(trigger_lhs, pair_name) abort
     \   . ")<cr>"
 endfunction
 
-function! s:register_triggers() abort
+function! VimproviserStatus() abort
+    return s:current_pair
+endfunction
+
+function! VimproviserRegisterTriggers() abort
     if ! exists('g:vimproviser_triggers')
         return
     endif
+    if s:triggers_registered
+        call s:error('Cannot call VimproviserRegisterTriggers here, it was already called')
+        return
+    endif
+
     for [pair_name, lhs_list] in items(g:vimproviser_triggers)
         if ! has_key(s:pairs, pair_name)
             call s:error(
@@ -167,9 +175,10 @@ function! s:register_triggers() abort
             call s:register_trigger(lhs, pair_name)
         endfor
     endfor
+    let s:triggers_registered = 1
 endfunction
 
 command -nargs=1 -complete=customlist,s:list_pairs VimproviserMap call s:map("<args>")
-command -nargs=0 VimproviserRegisterTriggers call s:register_triggers()
+command -nargs=0 VimproviserLast call s:map_last_triggered()
 
 call s:map("Characters")

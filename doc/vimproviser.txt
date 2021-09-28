@@ -13,6 +13,7 @@ QUICK START			|vimproviser-quick-start|
 CONFIGURATION			|vimproviser-configuration|
 MAPPINGS			|vimproviser-mappings|
 COMMANDS			|vimproviser-commands|
+FUNCTIONS			|vimproviser-functions|
 TROUBLESHOOTING			|vimproviser-troubleshooting|
 
 ==============================================================================
@@ -88,7 +89,7 @@ precedence, so you can redefine any default pair. Defining this variable will
 allow you to use the new pairs with |VimproviserMap| and mention them in
 |g:vimproviser_triggers|. You can use default keys, like {, as well as
 mappings defined by plugins and you (See the caveat in
-|VimproviserRegisterTriggers|), and also commands ( Note the missing <cr> ).
+|VimproviserRegisterTriggers()|), and also commands ( Note the missing <cr> ).
 
 ------------------------------------------------------------------------------
 g:vimproviser_triggers			*g:vimproviser_triggers*
@@ -108,6 +109,10 @@ For example, define:
     \}
 <
 
+Note if you want to specify a key that you mapped in `after-directory` you
+will have to define |g:vimproviser_skip_trigger_registration| and call
+|VimproviserRegisterTriggers()| yourself after your mappings has been defined.
+
 Now whenever you press [q and then call |VimproviserLast| Vimproviser will map
 your convenient keys to |quickfix| movements ( `:cprevious` , `:cnext` ).
 After you are finished with going through quickfix list you decide to jump to
@@ -119,6 +124,20 @@ example:
 >
     nnoremap <leader><cr> :VimproviserLast<cr>
 <
+
+------------------------------------------------------------------------------
+                                     *g:vimproviser_skip_trigger_registration*
+
+Warning: this is an advanced option, you only need to define it if you want to
+make a trigger out of a mapping you define in an `after-directory`. If you
+define it you have to call |VimproviserRegisterTriggers()|.
+
+You can set this variable to any value
+>
+    let g:vimproviser_skip_trigger_registration = 1
+<
+Vimproviser will not register your triggers then, so you will have to do it
+yourself by calling |VimproviserRegisterTriggers()|.
 
 ==============================================================================
 MAPPINGS				*vimproviser-mappings*
@@ -157,27 +176,42 @@ Only works if you defined |g:vimproviser_triggers|. Will map the latest
 triggered pair the same way |VimproviserMap| does. The difference is that you
 don't need to specify an argument.
 
-:VimproviserRegisterTriggers			*VimproviserRegisterTriggers*
+==============================================================================
+FUNCTIONS				*vimproviser-functions*
 
-This is a technical command, it is only necessary if you want to make a
+VimproviserRegisterTriggers()			*VimproviserRegisterTriggers()*
+
+This is a technical function, it is only necessary if you want to make a
 trigger out of your own mappings defined in an `after-directory`. In this case
-you need to call this command after your mapping is defined. One place where
-you could do that is in .vim/after/plugin/config/vimproviser.vim . Note ,
-however, that you have to make sure your mapping is defined by that time, if
-it is not you can force the loading of the script that defines it with
-`:runtime` like so
+you need to call this command after your mapping is defined.
+
+One place where you could do that is in
+.vim/after/plugin/config/vimproviser.vim, but you have to make sure your
+mapping is defined by that time. If it is not you can force the loading of the
+script that defines it with `:runtime` like so:
 >
     " Inside .vim/after/plugin/config/vimproviser.vim
     runtime after/plugin/config/ale.vim
-    VimproviserRegisterTriggers
+    call VimproviserRegisterTriggers()
 <
+
+Make sure to put an include guard in after/plugin/config/ale.vim
+otherwise your mapping may override the trigger:
+>
+    if ! exists("g:loaded_after_ale")
+        let g:loaded_after_ale = 1
+    endif
+    " Your commands
+<
+This function cannot be called twice. If you have to use it make sure you also
+define |g:vimproviser_skip_trigger_registration|.
 
 ==============================================================================
 TROUBLESHOOTING				*vimproviser-troubleshooting*
 
 Things to check if something does not work:
 
-    * See |VimproviserRegisterTriggers|
+    * See |VimproviserRegisterTriggers()|
     * Check out the output of `:map` for your chosen keybindings to
       |<Plug>(vimproviser-left)| and |<Plug>(vimproviser-right)|
     * Check out the output of `:map` for |vimproviser-mappings|
