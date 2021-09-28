@@ -24,6 +24,18 @@ let s:original_mappings = {}
 let s:current_pair = ''
 let s:last_triggered_pair = ''
 
+if has('patch-8.2.1978')
+    let s:cmd_map = '<cmd> '
+else
+    let s:cmd_map = ':<c-u> '
+endif
+
+if has('patch-8.2.1665')
+    let s:fuzzy = 1
+else
+    let s:fuzzy = 0
+endif
+
 function! s:qualified_rhs(rhs) abort
     if a:rhs =~? "^:"
         return a:rhs . ""
@@ -37,7 +49,7 @@ function! s:original_maparg(lhs) abort
         if maparg_dict == {}
             let maparg_dict = {"rhs": a:lhs, "noremap": 1}
         endif
-        let s:original_mappings[a:lhs] = filter(maparg_dict, {key, val -> key == 'rhs' || key == 'noremap'})
+        let s:original_mappings[a:lhs] = filter(maparg_dict, '(v:key == "rhs") + (v:key == "noremap")')
     endif
     return s:original_mappings[a:lhs]
 endfunction
@@ -73,7 +85,7 @@ function! s:list_pairs(ArgLead, CmdLine, CursorPos) abort
     let options = s:all_pairs()
     let narrowed = []
     if a:ArgLead != ""
-        if exists('*matchfuzzy')
+        if s:fuzzy
             let narrowed = matchfuzzy(options, a:ArgLead)
         else
             for option in options
@@ -128,8 +140,8 @@ endfunction
 function! s:register_trigger(trigger_lhs, pair_name) abort
     " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
-    execute 'nnoremap ' . a:trigger_lhs
-    \   . " <cmd>call <sid>trigger_and_eval("
+    execute 'nnoremap <silent>' . a:trigger_lhs . " " . s:cmd_map
+    \   . "call <sid>trigger_and_eval("
     \       . string(a:pair_name)
     \       . ", "
     \       . string(substitute(original_maparg["rhs"], '<', '<lt>', ''))
