@@ -92,9 +92,15 @@ function! VimproviserStatus() abort
     return s:current_pair
 endfunction
 
-function! s:eval(maparg_dict) abort
-    let rhs = a:maparg_dict["rhs"]
-    let noremap = a:maparg_dict["noremap"]
+function! s:error(message) abort
+    echohl ErrorMsg
+    echomsg a:message
+    echohl None
+endfunction
+
+function! s:eval(rhs, noremap) abort
+    let rhs = a:rhs
+    let noremap = a:noremap
     if noremap == 1
         let normal = 'normal! '
     else
@@ -110,22 +116,26 @@ function! s:eval(maparg_dict) abort
     try
         execute normal . command
     catch /^Vim\%((\a\+)\)\=:E/
-        echohl ErrorMsg
-        echomsg substitute(v:exception, '.*\zeE\d\+', '', '')
-        echohl None
+        call s:error(substitute(v:exception, '.*\zeE\d\+', '', ''))
     endtry
 endfunction
 
-function! s:trigger_and_eval(pair_name, maparg_dict) abort
+function! s:trigger_and_eval(pair_name, rhs, noremap) abort
     let s:last_triggered_pair = a:pair_name
-    call s:eval(a:maparg_dict)
+    call s:eval(a:rhs, a:noremap)
 endfunction
 
 function! s:register_trigger(trigger_lhs, pair_name) abort
     " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
     execute 'nnoremap ' . a:trigger_lhs
-    \   . " <cmd>call <sid>trigger_and_eval('" . a:pair_name . "', " . substitute(string(original_maparg), '<', '<lt>', '') . ")<cr>"
+    \   . " <cmd>call <sid>trigger_and_eval("
+    \       . string(a:pair_name)
+    \       . ", "
+    \       . string(substitute(original_maparg["rhs"], '<', '<lt>', ''))
+    \       . ", "
+    \       . original_maparg["noremap"]
+    \   . ")<cr>"
 endfunction
 
 function! s:register_triggers() abort
@@ -133,6 +143,14 @@ function! s:register_triggers() abort
         return
     endif
     for [pair_name, lhs_list] in items(g:vimproviser_triggers)
+        if ! has_key(s:pairs, pair_name)
+            call s:error(
+            \    'Cannot use pair "'
+            \    . pair_name
+            \    . '" as a trigger target, define it in g:vimproviser_pairs first'
+            \ )
+            continue
+        endif
         for lhs in lhs_list
             call s:register_trigger(lhs, pair_name)
         endfor
