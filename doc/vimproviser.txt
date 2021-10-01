@@ -33,7 +33,7 @@ First map some keys to |<Plug>(vimproviser-left)| and
 Now try these commands and see what actions are performed when you press
 mapped keys
 >
-    VimproviserMap Paragraph
+    VimproviserMap Buffers
     VimproviserMap QuickFix
 <
 
@@ -41,11 +41,22 @@ Define a new Vimproviser pair. |g:vimproviser_pairs|.
 >
     let g:vimproviser_pairs = {"Paragraphs": ["{", "}"]}
 <
+Now you can
+>
+    VimproviserMap Paragraphs
+<
 
 Create Vimproviser triggers out of some keys. |g:vimproviser_triggers|.
 >
-    let g:vimproviser_triggers = {"QuickFix": ["[q", "]q"}
+    let g:vimproviser_triggers = {"Changes": ["g;", "g,"}
 <
+Now pressing g; not only takes you to the last change you made, but also
+allows you to call |VimproviserLast| which will perform the equivalent of
+>
+    VimproviserMap Changes
+<
+Define a bunch of triggers and you can go from one pair to another with a
+single key combination mapped to |VimproviserLast|!
 
 ==============================================================================
 CONFIGURATION				*vimproviser-configuration*
