@@ -179,7 +179,7 @@ Map |vimproviser-mappings| to the specified pair's actions. Default pairs are:
   * Tags ( `:tprevious`, `:tnext` )
 
 You can define your own pair |g:vimproviser_pairs|. Use Tim Pope's
-vim-unimpaired plugin for inspiration.
+unimpaired.vim plugin for inspiration.
 
 :VimproviserLast				*VimproviserLast*
 
