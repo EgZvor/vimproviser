@@ -109,44 +109,18 @@ function! s:error(message) abort
     echohl None
 endfunction
 
-function! s:eval(rhs, noremap) abort
-    let rhs = a:rhs
-    let noremap = a:noremap
-    if noremap == 1
-        let normal = 'normal! '
-    else
-        let normal = 'normal '
-    endif
-
-    if '<plug>' =~? rhs
-        let command =  rhs
-    else
-        let command =  eval('"' . escape(rhs, '<') . '"')
-    endif
-
-    try
-        execute normal . command
-    catch /^Vim\%((\a\+)\)\=:E/
-        call s:error(substitute(v:exception, '.*\zeE\d\+', '', ''))
-    endtry
-endfunction
-
-function! s:trigger_and_eval(pair_name, rhs, noremap) abort
-    let s:last_triggered_pair = a:pair_name
-    call s:eval(a:rhs, a:noremap)
+function! s:update_last_triggered(pair)
+    let s:last_triggered_pair = a:pair
 endfunction
 
 function! s:register_trigger(trigger_lhs, pair_name) abort
     " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
-    execute 'nnoremap <silent>' . a:trigger_lhs . " " . s:cmd_map
-    \   . "call <sid>trigger_and_eval("
-    \       . string(a:pair_name)
-    \       . ", "
-    \       . string(substitute(original_maparg["rhs"], '<', '<lt>', ''))
-    \       . ", "
-    \       . original_maparg["noremap"]
-    \   . ")<cr>"
+    if original_maparg["noremap"]
+        execute 'nnoremap <expr> ' . a:trigger_lhs . '  <sid>update_last_triggered("' . a:pair_name . '") ? "' . original_maparg["rhs"] . '" : "' . original_maparg["rhs"] . '"'
+    else
+        execute 'nmap <expr> ' . a:trigger_lhs . '  <sid>update_last_triggered("' . a:pair_name . '") ? "' . original_maparg["rhs"] . '" : "' . original_maparg["rhs"] . '"'
+    endif
 endfunction
 
 function! VimproviserStatus() abort
