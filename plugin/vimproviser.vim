@@ -113,6 +113,22 @@ function! s:update_last_triggered(pair)
     let s:last_triggered_pair = a:pair
 endfunction
 
+function! VimproviserRegisterMultiple(pair_name, ...) abort
+    if a:0 == 0
+        throw 'Vimproviser: specify at least 1 key combination to turn into a trigger'
+    endif
+
+    if ! has_key(s:pairs, a:pair_name)
+        throw 'Vimproviser: cannot use pair "'
+        \    . a:pair_name
+        \    . '" as a trigger target, define it in g:vimproviser_pairs first'
+        \ )
+    endif
+    for lhs in a:000
+        call s:register_trigger(lhs, a:pair_name)
+    endfor
+endfunction
+
 function! s:register_trigger(trigger_lhs, pair_name) abort
     " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
