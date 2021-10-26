@@ -21,15 +21,9 @@ else
     let s:pairs = s:default_pairs
 endif
 let s:original_mappings = {}
-let s:current_pair = ''
-let s:last_triggered_pair = ''
+let s:current_pair = {'name': 'Characters', 'count': 0}
+let s:last_triggered_pair = {'name': 'Characters', 'count': 0}
 let s:triggers_registered = 0
-
-if has('patch-8.2.1978')
-    let s:cmd_map = '<cmd> '
-else
-    let s:cmd_map = ':<c-u> '
-endif
 
 if has('patch-8.2.1665')
     let s:fuzzy = 1
@@ -55,19 +49,16 @@ function! s:original_maparg(lhs) abort
     return s:original_mappings[a:lhs]
 endfunction
 
-function! s:map(pair_name) abort
+function! s:map(pair_name, count=0) abort
     for [plug, rhs] in [
     \   ['<plug>(vimproviser-left)',  s:qualified_rhs(s:pairs[a:pair_name][0])],
     \   ['<plug>(vimproviser-right)', s:qualified_rhs(s:pairs[a:pair_name][1])],
     \]
         let original_maparg = s:original_maparg(rhs)
-        if original_maparg["noremap"]
-            execute 'nnoremap ' . plug . ' ' . original_maparg["rhs"]
-        else
-            execute 'nmap '     . plug . ' ' . original_maparg["rhs"]
-        endif
+        let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
+        execute map . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
     endfor
-    let s:current_pair = a:pair_name
+    let s:current_pair = {'name': a:pair_name, 'count': a:count}
 endfunction
 
 function! s:map_last_triggered() abort
@@ -75,8 +66,8 @@ function! s:map_last_triggered() abort
         call s:error('VimproviserLast requires g:vimproviser_triggers to be defined')
         return
     endif
-    if s:last_triggered_pair != '' && s:last_triggered_pair != s:current_pair
-        call s:map(s:last_triggered_pair)
+    if s:last_triggered_pair != s:current_pair
+        call s:map(s:last_triggered_pair.name, s:last_triggered_pair.count)
     endif
 endfunction
 
@@ -109,8 +100,19 @@ function! s:error(message) abort
     echohl None
 endfunction
 
-function! s:update_last_triggered(pair)
-    let s:last_triggered_pair = a:pair
+function! s:update_last_triggered(pair, count)
+    let s:last_triggered_pair = {'name': a:pair, 'count': a:count}
+endfunction
+
+function! s:register_trigger(trigger_lhs, pair_name) abort
+    " Make `lhs` a trigger for `pair_name`
+    let original_maparg = s:original_maparg(a:trigger_lhs)
+    let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
+    execute map . ' <expr> ' . a:trigger_lhs . ' <sid>update_last_triggered("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
+endfunction
+
+function! VimproviserStatus() abort
+    return s:current_pair.name
 endfunction
 
 function! VimproviserRegisterMultiple(pair_name, ...) abort
@@ -127,20 +129,6 @@ function! VimproviserRegisterMultiple(pair_name, ...) abort
     for lhs in a:000
         call s:register_trigger(lhs, a:pair_name)
     endfor
-endfunction
-
-function! s:register_trigger(trigger_lhs, pair_name) abort
-    " Make `lhs` a trigger for `pair_name`
-    let original_maparg = s:original_maparg(a:trigger_lhs)
-    if original_maparg["noremap"]
-        execute 'nnoremap <expr> ' . a:trigger_lhs . '  <sid>update_last_triggered("' . a:pair_name . '") ? "' . original_maparg["rhs"] . '" : "' . original_maparg["rhs"] . '"'
-    else
-        execute 'nmap <expr> ' . a:trigger_lhs . '  <sid>update_last_triggered("' . a:pair_name . '") ? "' . original_maparg["rhs"] . '" : "' . original_maparg["rhs"] . '"'
-    endif
-endfunction
-
-function! VimproviserStatus() abort
-    return s:current_pair
 endfunction
 
 function! VimproviserRegisterTriggers() abort
