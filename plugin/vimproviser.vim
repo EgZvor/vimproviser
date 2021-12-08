@@ -3,6 +3,19 @@ if exists('g:loaded_vimproviser')
 endif
 
 let g:loaded_vimproviser = 1
+let s:vimproviser_triggers_fast = {
+\   'ToCharacter': ['f', 't', 'F', 'T'],
+\   'BigWordEndInv': ['gE'],
+\   'BigWordStartInv': ['B'],
+\   'WordEndInv': ['ge'],
+\   'WordStartInv': ['b'],
+\   'BigWordEnd': ['E'],
+\   'BigWordStart': ['W'],
+\   'WordEnd': ['e'],
+\   'WordStart': ['w'],
+\   'Paragraphs': ['}'],
+\   'ParagraphsInv': ['{'],
+\}
 let s:default_pairs = {
     \   "ArgList": [":previous", ":next"],
     \   "Buffers": [":bprevious", ":bnext"],
@@ -14,6 +27,17 @@ let s:default_pairs = {
     \   "QuickFix": [":cprevious", ":cnext"],
     \   "QuickFixFile": [":cpfile", ":cnfile"],
     \   "Tags": [":tprevious", ":tnext"],
+    \   'BigWordEndInv': ['E', 'gE'],
+    \   'BigWordStartInv': ['W', 'B'],
+    \   'WordEndInv': ['e', 'ge'],
+    \   'WordStartInv': ['w', 'b'],
+    \   'BigWordEnd': ['gE', 'E'],
+    \   'BigWordStart': ['B', 'W'],
+    \   'WordEnd': ['ge', 'e'],
+    \   'WordStart': ['b', 'w'],
+    \   'ToCharacter': [',', ';'],
+    \   'Paragraphs': ['{', '}'],
+    \   'ParagraphsInv': ['}', '{'],
     \}
 if exists("g:vimproviser_pairs")
     let s:pairs = extendnew(s:default_pairs, g:vimproviser_pairs)
@@ -41,12 +65,34 @@ endfunction
 function! s:original_maparg(lhs) abort
     if ! has_key(s:original_mappings, a:lhs)
         let maparg_dict = maparg(a:lhs, 'n', 0, 1)
-        if maparg_dict == {}
+        if maparg_dict == {} || maparg_dict["rhs"] =~? 'vimproviser'
             let maparg_dict = {"rhs": a:lhs, "noremap": 1}
         endif
         let s:original_mappings[a:lhs] = filter(maparg_dict, '(v:key == "rhs") + (v:key == "noremap")')
     endif
     return s:original_mappings[a:lhs]
+endfunction
+
+function! s:map_fast(pair_name, count=0) abort
+    " TODO split the plugin into 2 (or 3).
+    " vimproviser_triggers_fast is a collection of triggers that will
+    " immediately map <plug>(vimproviser-left/right-fast) to its pair.
+    " This is closer to the original goal of repeating motions. As it does not
+    " require any manual intervention (issuing VimproviserLast).
+    " There are 2 types of triggers then: "slow" and "fast".
+    " Two functionalities can be split into 2 plugins (if there is a need in
+    " slow motions, is unimpaired enough?).
+    " A common ("trigger", "interactive mapping") framework can be extracted
+    " that allows to build both plugins. It should be usable by SpaceVim.
+    " TODO: is the need for "repeating motions" just a smell?
+    for [plug, rhs] in [
+    \   ['<plug>(vimproviser-left-fast)',  s:qualified_rhs(s:pairs[a:pair_name][0])],
+    \   ['<plug>(vimproviser-right-fast)', s:qualified_rhs(s:pairs[a:pair_name][1])],
+    \]
+        let original_maparg = s:original_maparg(rhs)
+        let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
+        execute map . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
+    endfor
 endfunction
 
 function! s:map(pair_name, count=0) abort
@@ -104,11 +150,15 @@ function! s:update_last_triggered(pair, count)
     let s:last_triggered_pair = {'name': a:pair, 'count': a:count}
 endfunction
 
-function! s:register_trigger(trigger_lhs, pair_name) abort
+function! s:register_trigger(trigger_lhs, pair_name, include_fast=0) abort
     " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
     let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
-    execute map . ' <expr> ' . a:trigger_lhs . ' <sid>update_last_triggered("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
+    if a:include_fast
+        execute map . ' <expr> ' . a:trigger_lhs . ' <sid>map_fast("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
+    else
+        execute map . ' <expr> ' . a:trigger_lhs . ' <sid>update_last_triggered("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
+    endif
 endfunction
 
 function! VimproviserStatus() abort
@@ -154,9 +204,31 @@ function! VimproviserRegisterTriggers() abort
         endfor
     endfor
     let s:triggers_registered = 1
+
+    for [pair_name, lhs_list] in items(s:vimproviser_triggers_fast)
+        if ! has_key(s:pairs, pair_name)
+            call s:error(
+            \    'Cannot use pair "'
+            \    . pair_name
+            \    . '" as a trigger target, define it in g:vimproviser_pairs first'
+            \ )
+            continue
+        endif
+        for lhs in lhs_list
+            call s:register_trigger(lhs, pair_name, 1)
+        endfor
+    endfor
 endfunction
 
 command -nargs=1 -complete=customlist,s:list_pairs VimproviserMap call s:map("<args>")
 command -nargs=0 VimproviserLast call s:map_last_triggered()
 
 call s:map("Characters")
+
+if !hasmapto("<plug>(vimproviser-left-fast)") && maparg(',', 'n', 0, 1) == {} && mapleader != ',' && maplocalleader != ','
+    nmap , <plug>(vimproviser-left-fast)
+endif
+
+if !hasmapto("<plug>(vimproviser-right-fast)") && maparg(';', 'n', 0, 1) == {} && mapleader != ';' && maplocalleader != ';'
+    nmap ; <plug>(vimproviser-right-fast)
+endif
