@@ -117,12 +117,8 @@ function! s:map_last_triggered() abort
     endif
 endfunction
 
-function! s:all_pairs() abort
-    return sort(keys(s:pairs))
-endfunction
-
-function! s:list_pairs(ArgLead, CmdLine, CursorPos) abort
-    let options = s:all_pairs()
+function! s:list_pairs(options, ArgLead) abort
+    let options = copy(a:options)
     let narrowed = []
     if a:ArgLead != ""
         if s:fuzzy
@@ -138,6 +134,14 @@ function! s:list_pairs(ArgLead, CmdLine, CursorPos) abort
     else
         return options
     endif
+endfunction
+
+function! s:list_all_pairs(ArgLead, CmdLine, CursorPos) abort
+    return s:list_pairs(sort(keys(s:pairs)), a:ArgLead)
+endfunction
+
+function! s:list_trigger_pairs(ArgLead, CmdLine, CursorPos) abort
+    return s:list_pairs(sort(keys(g:vimproviser_triggers)), a:ArgLead)
 endfunction
 
 function! s:error(message) abort
@@ -220,7 +224,8 @@ function! VimproviserRegisterTriggers() abort
     endfor
 endfunction
 
-command -nargs=1 -complete=customlist,s:list_pairs VimproviserMap call s:map("<args>")
+command -nargs=1 -complete=customlist,s:list_all_pairs VimproviserMap call s:map("<args>")
+command -nargs=1 -complete=customlist,s:list_trigger_pairs VimproviserTrigger call s:update_last_triggered("<args>", 0)
 command -nargs=0 VimproviserLast call s:map_last_triggered()
 
 call s:map("Characters")
