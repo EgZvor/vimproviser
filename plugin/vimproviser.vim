@@ -66,9 +66,12 @@ function! s:original_maparg(lhs) abort
     if ! has_key(s:original_mappings, a:lhs)
         let maparg_dict = maparg(a:lhs, 'n', 0, 1)
         if maparg_dict == {} || maparg_dict["rhs"] =~? 'vimproviser'
-            let maparg_dict = {"rhs": a:lhs, "noremap": 1}
+            let maparg_dict = {"rhs": a:lhs, "noremap": 1, "silent": 1}
         endif
-        let s:original_mappings[a:lhs] = filter(maparg_dict, '(v:key == "rhs") + (v:key == "noremap")')
+        let s:original_mappings[a:lhs] = filter(
+        \    maparg_dict,
+        \    '(v:key == "rhs") + (v:key == "noremap") + (v:key == "silent")'
+        \)
     endif
     return s:original_mappings[a:lhs]
 endfunction
@@ -91,7 +94,8 @@ function! s:map_fast(pair_name, count=0) abort
     \]
         let original_maparg = s:original_maparg(rhs)
         let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
-        execute map . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
+        let silent = original_maparg["silent"] ? '<silent>': ''
+        execute map . ' ' . silent . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
     endfor
 endfunction
 
@@ -102,7 +106,8 @@ function! s:map(pair_name, count=0) abort
     \]
         let original_maparg = s:original_maparg(rhs)
         let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
-        execute map . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
+        let silent = original_maparg["silent"] ? '<silent>': ''
+        execute map . ' ' . silent . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
     endfor
     let s:current_pair = {'name': a:pair_name, 'count': a:count}
 endfunction
@@ -158,10 +163,11 @@ function! s:register_trigger(trigger_lhs, pair_name, include_fast=0) abort
     " Make `lhs` a trigger for `pair_name`
     let original_maparg = s:original_maparg(a:trigger_lhs)
     let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
+    let silent = original_maparg["silent"] ? '<silent>': ''
     if a:include_fast
-        execute map . ' <expr> ' . a:trigger_lhs . ' <sid>map_fast("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
+        execute map . ' ' . silent . ' <expr> ' . a:trigger_lhs . ' <sid>map_fast("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
     else
-        execute map . ' <expr> ' . a:trigger_lhs . ' <sid>update_last_triggered("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
+        execute map . ' ' . silent . ' <expr> ' . a:trigger_lhs . ' <sid>update_last_triggered("' . a:pair_name . '", v:count) ?? "' . original_maparg["rhs"] . '"'
     endif
 endfunction
 
