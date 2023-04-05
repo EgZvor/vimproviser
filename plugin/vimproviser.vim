@@ -33,6 +33,10 @@ else
     let s:fuzzy = 0
 endif
 
+function! s:in(target, from) abort
+    return a:from->index(a:target) >= 0
+endfunction
+
 function! s:error(message) abort
     echohl ErrorMsg
     echomsg a:message
@@ -76,13 +80,20 @@ endfunction
 function! s:original_maparg(lhs) abort
     if !has_key(s:original_mappings, a:lhs)
         let maparg_dict = maparg(a:lhs, 'n', 0, 1)
-        if maparg_dict == {} || maparg_dict["rhs"] =~? 'vimproviser'
-            let maparg_dict = {"rhs": a:lhs, "noremap": 1, "silent": 1}
+        if maparg_dict == {} || maparg_dict['rhs'] =~? 'vimproviser'
+            let s:original_mappings[a:lhs] = {'rhs': a:lhs, 'noremap': 1, 'silent': 1}
+        else
+            let s:original_mappings[a:lhs] = maparg_dict
+\               ->copy()
+\               ->filter({k, _ -> k->s:in(['rhs', 'noremap', 'silent'])})
         endif
-        let s:original_mappings[a:lhs] = filter(
-        \    maparg_dict,
-        \    '(v:key == "rhs") + (v:key == "noremap") + (v:key == "silent")'
-        \)
+
+        " Make sure the original script number is used in `s:map` .
+        let orig_sid = get(maparg_dict, 'sid', '')
+        if orig_sid
+            let rhs = substitute(maparg_dict['rhs'], '<sid>\c', $'<snr>{orig_sid}_', 'g')
+            let s:original_mappings[a:lhs]['rhs'] = rhs
+        endif
     endif
     return s:original_mappings[a:lhs]
 endfunction
@@ -93,9 +104,10 @@ function! s:map(pair_name, count=0) abort
     \   ['<plug>(vimproviser-right)', s:qualified_rhs(s:pairs[a:pair_name][1])],
     \]
         let original_maparg = s:original_maparg(rhs)
-        let map = 'n' . (original_maparg["noremap"] ? 'nore'  : '') . 'map'
-        let silent = original_maparg["silent"] ? '<silent>': ''
-        execute map . ' ' . silent . ' ' . plug . ' ' . (a:count == 0 ? '' : a:count) . original_maparg["rhs"]
+        let map = 'n' .. (original_maparg['noremap'] ? 'nore'  : '') .. 'map'
+        let silent = original_maparg['silent'] ? '<silent>': ''
+        let orig_rhs = original_maparg['rhs']
+        execute $'{map} {silent} {plug} {a:count == 0 ? '' : a:count}{orig_rhs}'
     endfor
     let s:current_pair = {'name': a:pair_name, 'count': a:count}
 endfunction
