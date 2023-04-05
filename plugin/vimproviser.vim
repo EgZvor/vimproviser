@@ -13,6 +13,8 @@ let s:default_pairs = {
     \   "Macros": ["@h", "@l"],
     \   "QuickFix": [":cprevious", ":cnext"],
     \   "QuickFixFile": [":cpfile", ":cnfile"],
+    \   "Quickfix": [":cprevious", ":cnext"],
+    \   "QuickfixFile": [":cpfile", ":cnfile"],
     \   "Tags": [":tprevious", ":tnext"],
     \}
 if exists("g:vimproviser_pairs")
