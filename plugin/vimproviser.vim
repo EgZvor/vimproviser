@@ -110,6 +110,9 @@ function! s:map(pair_name, count=0) abort
         execute $'{map} {silent} {plug} {a:count == 0 ? '' : a:count}{orig_rhs}'
     endfor
     let s:current_pair = {'name': a:pair_name, 'count': a:count}
+    if exists('#User#VimproviserSet')
+        doautocmd <nomodeline> User VimproviserSet
+    endif
 endfunction
 
 function! s:map_last_triggered() abort
